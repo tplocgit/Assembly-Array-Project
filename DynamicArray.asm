@@ -11,6 +11,9 @@ p_MaxStr: 			.asciiz "Max:\t"
 p_endl:			.asciiz "\n"
 p_menu:			.asciiz "1. Print all elements\n2. Sum all elements\n3. List all prime elements\n4. Find largest elements\n5. Search a value in array\n"
 p_requestInput:		.asciiz "\nEnter a number (1 -> 6) to proceed:\t"
+p_requestX:		.asciiz "Please enter X = "
+p_notFound:		.asciiz "Error 404: X not found\n"
+p_FoundAt:		.asciiz "Found X at position p = "
 .text
 
 .globl main
@@ -74,6 +77,11 @@ main:
 		jal FindMax
 		j RequestInput
 	case5: bne $v0, 5, case6
+		li $v0 ,4
+		la $a0, p_requestX
+		syscall
+		li $v0, 5
+		syscall		
 		jal SearchX
 		j RequestInput		
 	case6: bne $v0, 6, RequestInput	
@@ -196,6 +204,43 @@ EndFindMax:
 	jr $ra
 
 SearchX:
+	la $t0, 0($s1) # pointer to array
+	move $t2, $v0 # t2 = X to find
+	li $t1, 4 # 4 bytes
+	mult  $t1, $s0 # Calculate to find last element
+	mflo $t1 # Get size of memory
+	subi $t1, $t1, 4 # t1 = t1 - 4 => point to last element
+	add $t1, $t1, $t0 # Update t1 become real pointer
+	lw $t3, 0($t1) # save last element
+	sw $t2, 0($t1) # set last element equal to X
+	li $t4, 0 # t3 = 0 store index
+	SearchXLoop:
+	lw $t5, 0($t0)
+	beq $t5, $t2, EndSearchXLoop # if a[i] == x break, 
+	# Cause last index auto == x so dont need to check size
+	addi $t0, $t0, 4
+	addi $t4, $t4, 1 
+	j SearchXLoop
+	EndSearchXLoop:
+	subi $t5, $s0, 1 # t5 = n - 1
+	seq $t3, $t3, $t2 # if t3 = X , t3 = 1 else 0
+	slt $t5, $t4, $t5 # if index found < n - 1 t5 = 1 else = 0
+	add $t5, $t5, $t3 # add t5 and t3 to check if t5 + t3 > 0 => found X in array else not
+	bnez $t5, PrintPosX # if t5 != 0 => found X => goto print position  
+	li $v0, 4
+	la $a0, p_notFound
+	syscall
+	j EndSearchX
+	PrintPosX:
+	li $v0, 4
+	la $a0, p_FoundAt
+	syscall
+	li $v0, 1
+	move $a0, $t4
+	syscall
+	li $v0, 4
+	la $a0, p_endl
+	syscall
 EndSearchX:
 	jr $ra
 
