@@ -5,20 +5,16 @@ p_InputIntStr:		.asciiz "Please input intergers\n"
 p_StartInputElmStr:	.asciiz "a["
 p_EndInputElmStr:	.asciiz "] =\t"
 p_OuputStr: 		.asciiz "Ouput:\t"
-p_SumStr:			.asciiz "Sum:\t"
-p_PrimeStr:         	.asciiz "Prime:\t"
+p_SumStr:			.asciiz "Sum all elements, s = \t"
+p_PrimeStr:         		.asciiz "Prime:\t"
 p_MaxStr: 			.asciiz "Max:\t"
 p_endl:			.asciiz "\n"
 p_menu:			.asciiz "1. Print all elements\n2. Sum all elements\n3. List all prime elements\n4. Find largest elements\n5. Search a value in array\n"
 p_requestInput:		.asciiz "\nEnter a number (1 -> 6) to proceed:\t"
 .text
-<<<<<<< HEAD
+
 .globl main
-main:
-=======
 
-
->>>>>>> 0b7ca1c18337b0cbe1740855383950176de1977a
 # $s0 = size
 # $s1 = array pointer
 # Input size of array
@@ -58,36 +54,30 @@ main:
 	la $a0,  p_menu # $a0 = string to print
 	syscall
 
-RequestInput:
+	RequestInput:
 	li $v0, 4 # $v0 = 4 to print string
 	la $a0,  p_requestInput # $a0 = string to print
 	syscall
 
 	li $v0, 5 #get choiceNum
 	syscall
-case1:
-	bne $v0, 1, case2
+	case1: bne $v0, 1, case2
 		jal OutputArray
 		j RequestInput
-case2:
-	bne $v0, 2, case3	
+	case2: bne $v0, 2, case3	
 		jal SumArray
 		j RequestInput	
-case3:
-	bne $v0, 3, case4	
-		jal ListPrime#Print all prime elements
+	case3: bne $v0, 3, case4	
+		jal ListPrime
 		j RequestInput
-case4:
-	bne $v0, 4, case5
+	case4: bne $v0, 4, case5
 		jal FindMax
 		j RequestInput
-case5:
-	bne $v0, 5, case6
+	case5: bne $v0, 5, case6
 		jal SearchX
 		j RequestInput		
-case6:	
-	bne $v0, 6, RequestInput	
-		j Exit
+	case6: bne $v0, 6, RequestInput	
+		j EndMenu
 	EndMenu:
 EndMain:
 j Exit
@@ -167,6 +157,30 @@ EndOuputArray:
 	jr $ra
 
 SumArray:
+	# Calculate Sum
+	li $t0, 0 # t0 = 0 for loop
+	la $t1, 0($s1) # pointer to array
+	li $t2, 0 # store sum in here
+	SumLoop:
+	#get element and calculate
+	bge $t0, $s0, EndSumLoop # base case: if t0 >= s0 (size) break
+	lw $t3, 0($t1) # get value of element
+	add $t2, $t2, $t3 # t2+=t3
+	# Prepare for next loop and go to next loop
+	add $t1, $t1, 4 # move to next element
+	addi $t0, $t0, 1 # t0++
+	j SumLoop
+	EndSumLoop:
+	# Print result
+	li $v0, 4 # $v0 = 4 to print string
+	la $a0, p_SumStr
+	syscall
+	li $v0, 1 # $v0 = 1 to print integer
+	move $a0, $t2 # a0 = value to print
+	syscall
+	li $v0, 4 # $v0 = 4 to print string
+	la $a0, p_endl
+	syscall
 EndSumArray:
 	jr $ra
 
@@ -183,10 +197,6 @@ EndFindMax:
 
 SearchX:
 EndSearchX:
-	jr $ra
-
-PrintMenu:
-EndPrintMenu:
 	jr $ra
 
 Exit:
