@@ -1,27 +1,29 @@
 .data
 # Menu string
-InputSizeStr:	.asciiz "Please input size: "
-InputIntStr:		.asciiz "Please input intergers:\n"
-StartInputElmStr:	.asciiz "a["
-EndInputElmStr:	.asciiz "] = "
-OuputStr: 		.asciiz "Ouput: "
-SumStr:		.asciiz "Sum: "
-PrimeStr:		.asciiz "Prime: "
-MaxStr: 		.asciiz "Max: "
-endl:			.asciiz "\n"
+p_InputSizeStr:		.asciiz "Please input size:\t"
+p_InputIntStr:		.asciiz "Please input intergers:\n"
+p_StartInputElmStr:	.asciiz "a["
+p_EndInputElmStr:	.asciiz "] =\t"
+p_OuputStr: 		.asciiz "Ouput:\t"
+p_SumStr:			.asciiz "Sum:\t"
+p_PrimeStr:		.asciiz "Prime:\t"
+p_MaxStr: 			.asciiz "Max:\t"
+p_endl:			.asciiz "\n"
 .text
+
+
 main:
 # $s0 = size
 # $s1 = array pointer
 # Input size of array
 InputSize:
 li $v0, 4 # $v0 = 4 to print srting
-la $a0,  InputIntStr # $a0 = string to print
+la $a0,  p_InputIntStr # $a0 = string to print
 syscall
 
 # Print string to remind input integer
 li $v0, 4 # $v0 = 4 to print srting
-la $a0,  InputSizeStr # $a0 = string to print
+la $a0,  p_InputSizeStr # $a0 = string to print
 syscall
 
 # Input Size
@@ -38,15 +40,15 @@ EndInputSize:
 # Task
 # Input array
 li $v0, 4 # v0= 4 to print string
-la $a0, InputIntStr # a0 = adress to print
+la $a0, p_InputIntStr # a0 = adress to print
 syscall
 jal InputArray
 # Output array
 li $v0, 4 # v0= 4 to print string
-la $a0, OuputStr # a0 = adress to print
+la $a0, p_OuputStr # a0 = adress to print
 syscall
 li $v0, 4 # v0= 4 to print string
-la $a0, endl # a0 = adress to print
+la $a0, p_endl # a0 = adress to print
 syscall
 jal OutputArray
 
@@ -74,13 +76,13 @@ bnez $t2, EndInputArrayLoop # (t2 != 0) => ($t1 = 1) => break
 
 #Print string: "a[i] = "
 li $v0,  4 # Print string
-la $a0, StartInputElmStr # a0 = value to print
+la $a0, p_StartInputElmStr # a0 = value to print
 syscall
 li $v0,  1 # print integer
 move $a0, $t1  # a0 = value to print
 syscall
 li $v0,  4 # Print string
-la $a0, EndInputElmStr # a0 = value to print
+la $a0, p_EndInputElmStr # a0 = value to print
 syscall
 
 # Read integer as element
@@ -106,20 +108,20 @@ bnez $t2, EndOutputArrayLoop # if t2 != 0 => t2 = 1 => i >=n => break
 
 # print data
 li $v0,  4 # Print string
-la $a0, StartInputElmStr # a0 = value to print
+la $a0, p_StartInputElmStr # a0 = value to print
 syscall
 li $v0,  1 # print integer
 move $a0, $t1  # a0 = value to print
 syscall
 li $v0,  4 # Print string
-la $a0, EndInputElmStr # a0 = value to print
+la $a0, p_EndInputElmStr # a0 = value to print
 syscall
 li $v0, 1 # v0 = 1 to print integer
 lw $a0, 0($t0) # a0 = integer want to print
 syscall
 addi $t0, $t0, 4 # update
 li $v0, 4 # v0 = 4 to print string
-la $a0, endl
+la $a0, p_endl
 syscall
 
 addi $t1, $t1, 1
