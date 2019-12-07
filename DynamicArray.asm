@@ -1,23 +1,29 @@
 .data
 # Menu string
-InputIntStr:	.asciiz "Please input an interger: "
+InputSizeStr:	.asciiz "Please input size: "
+InputIntStr:		.asciiz "Please input intergers:\n"
 StartInputElmStr:	.asciiz "a["
 EndInputElmStr:	.asciiz "] = "
-OuputStr: 	.asciiz "Ouput: "
-SumStr:	.asciiz "Sum: "
-PrimeStr:	.asciiz "Prime: "
-MaxStr: 	.asciiz "Max: "
-endl:	.asciiz "\n"
+OuputStr: 		.asciiz "Ouput: "
+SumStr:		.asciiz "Sum: "
+PrimeStr:		.asciiz "Prime: "
+MaxStr: 		.asciiz "Max: "
+endl:			.asciiz "\n"
 .text
 main:
 # $s0 = size
 # $s1 = array pointer
 # Input size of array
 InputSize:
-# Print string to remind input integer
 li $v0, 4 # $v0 = 4 to print srting
 la $a0,  InputIntStr # $a0 = string to print
 syscall
+
+# Print string to remind input integer
+li $v0, 4 # $v0 = 4 to print srting
+la $a0,  InputSizeStr # $a0 = string to print
+syscall
+
 # Input Size
 li $v0,  5 # $vo=5 to input an integer number, $v0 contain number read
 syscall
@@ -28,10 +34,22 @@ bnez $t0, InputSize # if $t1 = 0  => $v0 !> 0 =>$v0 <= 0 => goto InputSize <=> w
 EndCheckSizeLoop:
 move $s0, $v0 # $s0 = $v0 to save an integer inputed, $t0 contain size of array
 EndInputSize:
-# Input array
-jal InputArray
 
-jal DellocateArray
+# Task
+# Input array
+li $v0, 4 # v0= 4 to print string
+la $a0, InputIntStr # a0 = adress to print
+syscall
+jal InputArray
+# Output array
+li $v0, 4 # v0= 4 to print string
+la $a0, OuputStr # a0 = adress to print
+syscall
+li $v0, 4 # v0= 4 to print string
+la $a0, endl # a0 = adress to print
+syscall
+jal OutputArray
+
 EndMain:
 j Exit
 # Function Part
@@ -46,7 +64,7 @@ mult $s0, $t0 # calculate size of memory n * 4
 mflo $a0 # a0 = size calculated
 syscall # allocate, (a0 = size * 4) bytes, v0 contain adress
 move $s1, $v0 # s1 = v0, Contain array pointer 
-move $t0, $s1 # save pointer
+la $t0, 0($s1) # save pointer
 # Input data
 li $t1, 0 # Init $t01= i = 0
 InputArrayLoop: # Start Loop
@@ -59,7 +77,7 @@ li $v0,  4 # Print string
 la $a0, StartInputElmStr # a0 = value to print
 syscall
 li $v0,  1 # print integer
-move $a0, $t2  # a0 = value to print
+move $a0, $t1  # a0 = value to print
 syscall
 li $v0,  4 # Print string
 la $a0, EndInputElmStr # a0 = value to print
@@ -80,6 +98,33 @@ EndInputArray:
 jr $ra # return
 
 OutputArray:
+move $t0, $s1 # t0 = pointer to array
+li $t1, 0 # i =0
+OuputArrayLoop:
+sge $t2, $t1, $s0 # if i >= n, t2 = 1, else t2 = 0
+bnez $t2, EndOutputArrayLoop # if t2 != 0 => t2 = 1 => i >=n => break
+
+# print data
+li $v0,  4 # Print string
+la $a0, StartInputElmStr # a0 = value to print
+syscall
+li $v0,  1 # print integer
+move $a0, $t1  # a0 = value to print
+syscall
+li $v0,  4 # Print string
+la $a0, EndInputElmStr # a0 = value to print
+syscall
+li $v0, 1 # v0 = 1 to print integer
+lw $a0, 0($t0) # a0 = integer want to print
+syscall
+addi $t0, $t0, 4 # update
+li $v0, 4 # v0 = 4 to print string
+la $a0, endl
+syscall
+
+addi $t1, $t1, 1
+j OuputArrayLoop
+EndOutputArrayLoop:
 EndOuputArray:
 jr $ra
 
@@ -101,15 +146,6 @@ jr $ra
 
 PrintMenu:
 EndPrintMenu:
-jr $ra
-
-DellocateArray:
-li $v0, 9 # v0 = 9 to allocate memory
-li $t0, -4 # t0 = 4 byte
-mult $s0, $t0 # calculate size of memory n * 4
-mflo $a0 # a0 = size calculated
-syscall # allocate, (a0 = size * 4) bytes, v0 contain adress
-EndDellocateArray:
 jr $ra
 
 Exit:
