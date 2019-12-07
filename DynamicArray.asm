@@ -10,6 +10,7 @@ PrimeStr:		.asciiz "Prime: "
 MaxStr: 		.asciiz "Max: "
 endl:			.asciiz "\n"
 .text
+.globl main
 main:
 # $s0 = size
 # $s1 = array pointer
