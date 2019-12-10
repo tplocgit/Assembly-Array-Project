@@ -12,6 +12,8 @@ str_StringOfFileIn:	.asciiz ""
 .text
 .globl main
 
+# $s1 is n
+# $s0 is array
 
 main:
 	li $v0, 4
@@ -88,19 +90,45 @@ Parse:
 	# StringToInt will remove number of characters read and all charracters read
 	# And push returned Integer to stack
 	# So we don't need to free them after call
-	jal StrToInt			# Return integer store in last 4 bytes block in stack
+	jal StrToInt				# Return integer store in last 4 bytes block in stack
 	lw $s1, 4($sp)			# Load size into $s1
 	addi $sp, $sp , 4			# Free 4 bytes block contains Size of stack
 	la $t0, str_StringOfFileIn	# Get the address of string of file
-	add $t0, $t0, $t1			# Move address read to '\n'
-	addi $t0, $t0, 1			# Increase it by one to ignore '\n'	
-
-	li $v0, 1
-	move $a0, $s1
+	add $s2, $t0, $s2			# Move address read to '\n'
+	addi $s2, $s2, 1			# Increase it by one to ignore '\n'
+	move $t0, $s2			# Copy address	
+	# Allocate array
+	li $t1, 4				# $t1 = 4-bytes
+	mul $a0, $s1, $t1			# $a0 = n * 4 
+	li $v0, 9				# $v0 = 9 for allocate
 	syscall
+	move $s0, $v0			# Save address of array to $s0
+	move $t2, $s0			# Make a copy for store
 	li $v0, 4
-	la $a0, str_endl
+	la $a0, ($t0)
 	syscall
+	ParseLoop:
+		lb $t1, ($t0)
+		beq $t1, 10, EndParseLoop	# if end of line break
+		beq $t1,  32, StoreIntoArray	# if ' ' goto prepare
+		addi $sp, $sp, -1			# Ask a 1 byte block to store char
+		sb $t1, 1($sp)			# Store char to stack
+		j ParseContinue
+		StoreIntoArray:
+		sub $t3, $t0, $s2			# Calc number of characters
+		addi $sp, $sp, -1			# Ask 1 block
+		sb $t3, 1($sp)			# Store num to stack
+		move $s2, $t0			# Update
+		addi $s2, $s2, 1			# Ignore ' '
+		jal StrToInt
+		lw $t5, 4($sp)			# Save return value
+		addi $sp, $sp, 4			# Free block
+		sw $t5, ($t2)			# Store into array
+		addi $t2, $t2, 4			# Next element
+		ParseContinue:
+		addi $t0, $t0, 1			# $t0++
+		j ParseLoop
+	EndParseLoop:
 EndParse:
 	lw $ra, 4($sp)	# Get return address stored at begin
 	addi $sp, $sp , 4	# Free 4 bytes block contains return adress of stack
