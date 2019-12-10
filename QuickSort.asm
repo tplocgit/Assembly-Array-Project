@@ -1,10 +1,10 @@
 .data
-path_FileIn:			.asciiz "input_sort.txt"
+path_FileIn:		.asciiz "input_sort.txt"
 path_FileOut:		.asciiz "output_sort.txt"
 str_Loading:		.asciiz "Loading from input_sort.txt...\n"
 str_Saving:			.asciiz "Saving into output_sort.txt...\n"
-str_Sorting:			.asciiz "Sorting...\n"
-str_dataChecking	:	.asciiz "Pease Check data: "
+str_Sorting:		.asciiz "Sorting...\n"
+str_dataChecking:	.asciiz "Please Check data: "
 str_space:			.asciiz " "
 str_endl:			.asciiz "\n"
 str_FileNotFound: 	.asciiz "Error XXX: File not found\n"
@@ -12,8 +12,9 @@ str_StringOfFileIn:	.asciiz ""
 .text
 .globl main
 
-# $s1 is n
-# $s0 is array
+
+#$s0: array pointer
+#s1: number of elements    
 
 main:
 	li $v0, 4
@@ -24,6 +25,18 @@ main:
 	li $v0, 4
 	la $a0, str_Sorting
 	syscall
+
+	#move $t0, $s0#a[i] = a[1] ~ addi $t0 , $t0, 4 to get a[++i]
+	addi $sp, $sp, -4
+	sw $ra, 4($sp) #save $ra 
+
+	li $t1, 0 # left = 0
+	addi $sp, $sp, -4
+	sw $t1, 4($sp)#push left
+
+	addi $t2, $s1, -1 #right = size - 1
+	addi $sp, $sp, -4
+	sw $t2, 4($sp)#push right
 	jal QuickSort	
 
 	li $v0, 4
@@ -70,7 +83,121 @@ EndLoadArrayFromFile:
 	addi $sp, $sp, 4
 	jr $ra
 
+Partition:
+
+	lw $t0, 4($sp)
+	addi $sp, $sp, 4 #free up stack
+	move $t1, $t0 #save $t1 = R
+
+	lw $t2, 4($sp)
+	addi $sp, $sp, 4 #free up stack
+	move $t3, $t0 #save $t3 = L
+
+	addi $t4, $t1, $t3
+	div $t4, 2
+
+	mflo $t5 #t5 = mid
+	mult $t5, 4
+	mflo $t6
+	move $t0, $s0
+	addi $t0, $t6 #get arr[pivot] 
+	
+	#XXXXXmove $t7, $s0
+	#$t0 = arr[Pivot]
+	#$t3 = L
+	#$t1 = R
+	#$t5 = pivot (mid)
+	#$t7 = arr[L]
+	#$t9 = arr[R]
+	
+	LoopPartion:
+		bgt $t3, $t1, EndLoopPartition #break condition 
+		
+		LoopL:
+			move $t7, $s0
+			mult $t3, 4
+			mflo $t6
+			addi	$t7, $t6#jump to arr[l]
+			
+			bgt $t7, $t0, EndLoopL #if(arr[l] > arr[pivot]) break;
+
+			addi $t3, $t3, 1
+		EndLoopL:
+
+		LoopR:
+			move $t9, $s0
+			mult $t1, 4
+			mflo $t6
+			addi	$t9, $t6#jump to arr[r]
+			
+			blt $t9, $t0, EndLoopR #if(arr[r] < arr[pivot]) break;
+
+			addi $t1, $t1, -1
+		EndLoopR:
+			
+		Swap:
+			bgt $t3, $t1, EndSwapLoop 
+			#Swap here
+			lw $t8, $t7
+			lw $s7, $t9
+			sw $s7, ($t7)
+			sw $t8, ($t9) 
+		EndSwap:
+	EndLoopPartiton:
+	#push R first
+	addi $sp, $sp, -4
+	sw $t1, 4($sp)#push left
+	#push L
+	addi $sp, $sp, -4
+	sw $t3, 4($sp)
+EndPartition:
+
 QuickSort:
+	#get stuff from stack (r - l - $ra)
+	lw $t0, 4($sp)
+	addi $sp, $sp, 4 #free up stack
+	move $t1, $t0 #save R
+
+	lw $t2, 4($sp)
+	addi $sp, $sp, 4 #free up stack
+	move $t3, $t0 #save L
+
+	bge $t3, $t1, EndQuickSort
+	
+#===============
+
+	addi $sp, $sp, -4
+	sw $t3, 4($sp)#push left
+	addi $sp, $sp, -4
+	sw $t1, 4($sp)#push right
+	j Partition
+	lw $t5, 4($sp)	#pop i value
+	addi $sp, $sp, 4
+	
+	lw $t6, 4($sp)	#pop j value
+	addi $sp, $sp, 4
+
+	blt $t5, $t3, NoLeftRecursion #pivot > i
+		LeftRecursion:
+			addi $sp, $sp, -4
+			sw $t3, 4($sp)#push left
+
+			addi $sp, $sp, -4
+			sw $t5, 4($sp)#push right
+
+			jal QuickSort
+		NoLeftRecursion:
+
+	bgt $t6, $t1, NoRightRecursion#pivot > j
+		RightRecursion:
+			addi $sp, $sp, -4
+			sw $t5, 4($sp)#push right
+
+			addi $sp, $sp, -4
+			sw $t1, 4($sp)#push right
+
+			jal QuickSort
+		NoRightRecursion:
 EndQuickSort:
 	jr $ra
 SaveArrayIntoFile:
