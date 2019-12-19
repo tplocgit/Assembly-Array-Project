@@ -96,7 +96,7 @@ Partition:
 	addi $sp, $sp, 4 #free up stack
 	move $t3, $t0 #save $t3 = L
 
-	addi $t4, $t1, $t3
+	add $t4, $t1, $t3
 	div $t4, 2
 
 	mflo $t5 #t5 = mid

@@ -4,12 +4,12 @@ p_InputSizeStr:		.asciiz "Please input size of array:\t"
 p_InputIntStr:		.asciiz "Please input intergers\n"
 p_StartInputElmStr:	.asciiz "a["
 p_EndInputElmStr:	.asciiz "] =\t"
-p_OuputStr: 		.asciiz "Ouput:\t"
+p_OuputStr: 		.asciiz "Ouput:\n"
 p_endl:			.asciiz "\n"
 p_notFound:		.asciiz "Error 404: X not found\n"
 p_Space:			.asciiz " "
 p_SortedOutput:	.asciiz "Sorted array:\n"
-
+p_Loop: .asciiz "Looping"
 .text
 
 .globl main
@@ -47,15 +47,10 @@ main:
 	syscall
 	jal InputArray
 
-	#=Print menu=
-	bne $v0, 1, case2
-	jal OutputArray
-		
-
 #----------------------------------------------------------
 	#move $t0, $s0#a[i] = a[1] ~ addi $t0 , $t0, 4 to get a[++i]
 	addi $sp, $sp, -4
-	sw $ra, 4($sp) #save $ra 
+	sw $ra, 4($sp) #save $ra
 
 
 	addi $t1, $s0, -1 #right = size - 1
@@ -66,11 +61,15 @@ main:
 	addi $sp, $sp, -4
 	sw $t1, 4($sp)#push left
 
+
+	jal QuickSort
 	
-	jal QuickSort			
 	li $v0, 4
 	la $a0, p_SortedOutput
 	syscall
+
+
+	jal OutputArray
 
 EndMain:
 j Exit
@@ -145,86 +144,11 @@ OutputArray:
 
 	addi $t1, $t1, 1
 	j OuputArrayLoop
-EndOutputArrayLoop:
+	EndOutputArrayLoop:
 EndOuputArray:
 	jr $ra
 
-Partition:
-	#$t5 = pivot (mid)
-	#$t0 = arr[Pivot]
-	#$t1 = L
-	#$t2 = R
-	#$t7 = arr[L]
-	#$t9 = arr[R]
-	#$t4
-	#$t8
-	lw $t0, 4($sp)
-	addi $sp, $sp, 4 #pop L
-	move $t1, $t0 #save $t1 = L
-
-	lw $t3, 4($sp)
-	addi $sp, $sp, 4 #pop R
-	move $t2, $t3 #save $t2 = R
-	
-	#------------------------------
-	add $t4, $t1, $t2
-	div $t5, $t4, 2 #pivot = (left + right) / 2
-	
-	li $t6, 4
-	mult $t5, $t6
-	mflo $t6
-	add $t0, $t6 #$t0 =  arr[pivot] 
-	#move $t0, $s1
-
-	LoopPartion:
-		bgt $t1, $t2, EndLoopPartition # while (L <= R)
-		move $t7, $s1#point to a[0]
-		LoopL:	
-			bgt $t7, $t0, EndLoopL #if(arr[L] > arr[pivot]) break;
-
-			addi $t1, $t1, 1		#else ++L
-			addi $t7, $t7, 4 # arr[i] -> arr[++i]
-			j LoopL
-		EndLoopL:
-
-		move $t9, $s1#point to a[0]
-		li $t6, 4
-		mult $t2, $t6
-		mflo $t6
-		LoopR:
-			blt $t9, $t0, EndLoopR #if(arr[R] < arr[pivot]) break;
-
-			addi $t2, $t2, -1
-			addi $t6, $t6, -4
-			j LoopR
-		EndLoopR:
-			
-		Swap:
-			#$t5 = pivot (mid)
-			#$t0 = arr[Pivot]
-			#$t1 = L
-			#$t2 = R
-			#$t7 = arr[L]
-			#$t9 = arr[R]
-	
-			bgt $t1, $t2, EndSwap #if(L > R) break
-			#Swap here
-			lw $t8, $t7
-			lw $t4, $t9
-			sw $t4, ($t7)
-			sw $t8, ($t9) 
-		EndSwap:
-	EndLoopPartiton:
-	#push R first
-	addi $sp, $sp, -4
-	sw $t2, 4($sp)
-	#push L
-	addi $sp, $sp, -4
-	sw $t1, 4($sp)
-EndPartition:
-
 QuickSort:
-	#get stuff from stack (l - r - $ra)
 	lw $t0, 4($sp)
 	addi $sp, $sp, 4 #pop L
 	move $t1, $t0 #save L
@@ -234,8 +158,9 @@ QuickSort:
 	move $t2, $t0 #save R
 
 	bge $t1, $t2, EndQuickSort #if (L >= R) return
-	
-#===============
+	#partition preparation
+	addi $sp, $sp, -4
+	sw $ra, 4($sp)#ra2
 
 	addi $sp, $sp, -4
 	sw $t2, 4($sp)#push right
@@ -243,37 +168,165 @@ QuickSort:
 	addi $sp, $sp, -4
 	sw $t1, 4($sp)#push left
 
-	j Partition
-	lw $t5, 4($sp)	#pop i value
-	addi $sp, $sp, 4
-	
-	lw $t6, 4($sp)	#pop j value
-	addi $sp, $sp, 4
+	jal Partition
 
-	blt $t5, $t3, NoLeftRecursion #pivot > i
+
+	lw $t0, 4($sp)
+	addi $sp, $sp, 4 #pop pivot
+	move $t3, $t0 #save pivot
+	move $t4, $t3
+
+	addi $t3, $t3, -1
+	addi $t4, $t4, 1
+
+
+	ble $t3, $t1, NoLeftRecursion #pivot < L
 		LeftRecursion:
 			addi $sp, $sp, -4
-			sw $t3, 4($sp)#push left
+			sw $ra, 4($sp)
 
 			addi $sp, $sp, -4
-			sw $t5, 4($sp)#push right
+			sw $t3, 4($sp)#push right
+
+			addi $sp, $sp, -4
+			sw $t1, 4($sp)#push left
 
 			jal QuickSort
 		NoLeftRecursion:
 
-	bgt $t6, $t1, NoRightRecursion#pivot > j
+	bge $t4, $t2, NoRightRecursion#pivot > R
 		RightRecursion:
 			addi $sp, $sp, -4
-			sw $t5, 4($sp)#push right
+			sw $ra, 4($sp)
 
 			addi $sp, $sp, -4
-			sw $t1, 4($sp)#push right
+			sw $t2, 4($sp)#push right
+
+			addi $sp, $sp, -4
+			sw $t4, 4($sp)#push left
 
 			jal QuickSort
 		NoRightRecursion:
+	lw $t0, 4($sp)
+	addi $sp, $sp, 4
 EndQuickSort:
-	jr $ra
+	jr $t0
 
+Partition:
+	lw $t0, 4($sp)
+	addi $sp, $sp, 4 #pop L
+	move $t1, $t0 #save L
+
+	lw $t0, 4($sp)
+	addi $sp, $sp, 4 #pop R
+	move $t2, $t0 #save R
+	#----
+	li $t4, 4
+	move $t3, $t1 #$t3 = L
+	mult $t3, $t4
+	mflo $t3 # $3 -> 4(L)
+
+#$t1 = L
+#$t2 = R
+#$t3 = i
+#$t4 = j
+#$t5 = pivotValue
+#$t6 = arr[i]
+#$t7 = arr[j]
+#$t9 holder (4)
+#$t8 holder
+	move $t0, $s1#Assign pointer
+	add $t0, $t0, $t3 #get arr[4(L)]
+	move $t5, $t0 #$t5 = pivotValue
+
+	move $t3, $t1
+	addi $t3, $t3, 1 #i = Left + 1
+
+	move $t4, $t2 #j = right
+
+	PartitionLoop:
+		LoopL:
+			bgt $t3, $t4, EndLoopL # if(i > j) break
+
+			#--get arr[L]
+			li $t9, 4
+			mult $t3, $t9
+			mflo $t8 # $t8 hold -> 4(L)
+
+			move $t0, $s1#Assign pointer
+			add $t0, $t0, $t8 #get arr[4(L)]
+			move $t6, $t0
+
+			bge $t6, $t5, EndLoopL  #if (arr[i] >= pivotValue) break
+			addi $t3, $t3, 1 #++L
+
+			j LoopL
+		EndLoopL:
+
+
+		LoopR:
+
+			bgt $t3, $t4, EndLoopR # if(i > j) break
+
+			#--get arr[L]
+			li $t9, 4
+			mult $t4, $t9
+			mflo $t8 # $t8 hold -> 4(L)
+
+			move $t0, $s1#Assign pointer
+			add $t0, $t0, $t8 #get arr[4(L)]
+			move $t7, $t0
+
+			blt $t7, $t5, EndLoopR  #if (arr[i] < pivotValue) break
+			addi $t4, $t4, -1 #--R
+
+			j LoopR
+		EndLoopR:
+		bge $t3, $t4, EndPartitionLoop
+
+		#Swap(arr[i], arr[j])
+		lw $t8, ($t7)
+		lw $t9, ($t6)
+		sw $t9, ($t7)
+		sw $t8, ($t6)
+		#===================
+		j PartitionLoop
+
+	EndPartitionLoop:
+ #if(arr[r] < pivotValue)
+ #      swap(arr[left], arr[r]);
+
+	#get arr[r]
+		li $t9, 4
+		mult $t4, $t9
+		mflo $t8 # $t8 hold -> 4(L)
+
+		move $t0, $s1#Assign pointer
+		add $t0, $t0, $t8 #get arr[4(L)]
+		move $t7, $t0
+
+		bge $t7, $t5, EndPartition
+	#get arr[left]	
+		li $t9, 4
+		mult $t1, $t9
+		mflo $t8 # $t8 hold -> 4(L)
+
+		move $t0, $s1#Assign pointer
+		add $t0, $t0, $t8 #get arr[4(L)]
+		move $t6, $t0
+	#Swap
+		lw $t8, ($t7)
+		lw $t9, ($t6)
+		sw $t9, ($t7)
+		sw $t8, ($t6)
+EndPartition:
+#pop previous $ra
+	lw $t0, 4($sp)
+	addi $sp, $sp, 4 #pop $ra
+
+	addi $sp, $sp, -4
+	sw $t4, 4($sp) #return j
+	jr $t0
 Exit:
 	addi $v0,$0,10
 	syscall
