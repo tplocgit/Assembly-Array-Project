@@ -9,6 +9,7 @@ str_space:			.asciiz " "
 str_endl:			.asciiz "\n"
 str_FileNotFound: 	.asciiz "Error XXX: File not found\n"
 str_StringOfFileIn:	.asciiz "" 
+itos_Buffer:			.space 12
 .text
 .globl main
 
@@ -22,7 +23,7 @@ main:
 	la $a0, str_Loading
 	syscall
 	jal LoadArrayFromFile
-
+	
 	li $v0, 4
 	la $a0, str_Sorting
 	syscall
@@ -45,7 +46,7 @@ main:
 	li $v0, 4
 	la $a0, str_Saving
 	syscall
-	#jal SaveArrayIntoFile
+	jal WriteArrayToFile
 Endmain:
 j Exit
 
@@ -72,7 +73,7 @@ LoadArrayFromFile:
 	li $v0, 14 # read file
 	move $a0, $s2 # a0 = file decriptor
 	la $a1, str_StringOfFileIn # adress of input
-	li $a2, 100000000
+	li $a2, 12000
 	syscall
 
 	jal Parse
@@ -203,40 +204,7 @@ QuickSort:
 		NoRightRecursion:
 EndQuickSort:
 	jr $ra
-SaveArrayIntoFile:
-	addi $sp, $sp, -4
-	sw $ra, 4($sp)
-	# Open file
-	li $v0, 13 # $v0 = 13 for open file
-	la $a0, path_FileOut # $a0 store path
-	li $a1, 0 # Flag read only
-	li $a2, 0 # mode is ignored
-	syscall
-	# Saving decriptor and checking error
-	move $s2, $v0
-	bgez $s2, NotErrorOut
-	# Error part
-	li $v0, 4
-	la $a0, str_FileNotFound
-	syscall
-	j CloseFile
 
-	NotErrorOut:
-	# Read size
-	li $v0, 15 # read file
-	move $a0, $s2 	# a0 = file decriptor
-	move $a1, $s0  	# adress of input
-	move $a2, $s1
-	syscall
-
-	CloseFileOut:
-	li $v0, 16
-	move $a0, $s2
-	syscall
-EndSaveArrayIntoFile:
-	lw $ra, 4($sp)
-	addi $sp, $sp, 4
-	jr $ra
 Parse:
 	addi $sp, $sp, -4 			# Request 4 bytes memory in stack to store return address
 	sw $ra, 4($sp) 			# Store return address to stack
@@ -254,14 +222,6 @@ Parse:
 	lw $s1, 4($sp)
 	addi $sp, $sp, 4
 	addi $s3, $s3, 1
-	# Print int read
-		li $v0, 1
-		move $a0, $s1
-		syscall
-		li $v0, 4
-		la $a0, str_endl
-		syscall
-	# End Print int read
 	# Allocate memory
 	li $t0, 4
 	mul $a0, $s1, $t0 	# calc size
@@ -308,7 +268,6 @@ Parse:
 	sw $t1, ($t2)
 	addi $t2, $t2, 4
 
-	jal OutputArray
 EndParse:
 	lw $ra, 4($sp)	# Get return address stored at begin
 	addi $sp, $sp , 4	# Free 4 bytes block contains return adress of stack
@@ -366,7 +325,129 @@ EndOutputArrayLoop:
 	syscall
 EndOuputArray:
 	jr $ra
+IToS:
+IToS.prepare:
+	lw $t0, 4($sp)			# Num to convert
+	addi $sp, $sp, 4
+	li $t3, 10				# temp
+	li $t5, 0				#count char
+	bnez $t0, IToS.NotZero	# If num != 0
+IToS.Zero:	
+	addi $t5, $t5, 1			# 1 char
+	addi $sp, $sp, -1			# 
+	li $t0, 48				# '0' is 48
+	sb $t0 , 1($sp)			# 
+	j IToS.StoreResult
+IToS.NotZero:	
+	la $t1, itos_Buffer 		# Result
+	bgt $t0, 0, IToS.GTZ
+IToS.LTZ:
+	li $t2, 1
+	neg $t0, $t0
+	j IToS.Loop				# Checker check sign of element
+IToS.GTZ:
+	li $t2, 0
+	IToS.Loop:
+		beqz $t0, EndIToS.Loop
+		div $t0, $t3
+		mflo $t0
+		mfhi $t4
+		addi $t4, $t4, 48
+		addi $sp, $sp, -1
+		sb $t4, 1($sp)
+		addi $t5, $t5, 1
+		j IToS.Loop
+	EndIToS.Loop:
+	beqz $t2, IToS.StoreResult
+	addi $sp, $sp, -1
+	li $t6, 45
+	sb $t6, 1($sp)
+	addi $t5, $t5, 1 
+IToS.StoreResult:
+	la $t6, itos_Buffer
+	move $a2, $t5
+	IToS.StoreResult.Loop:
+		beqz $t5, EndIToS.StoreResult.Loop
+		lb $t7, 1($sp)
+		sb $t7, ($t6)
+		addi $sp, $sp, 1
+		addi $t5,$t5,-1
+		addi $t6, $t6, 1
+		j IToS.StoreResult.Loop
+	EndIToS.StoreResult.Loop:
+	sb $zero, ($t6)
+EndIToS:
+	jr $ra
 
+WriteArrayToFile:
+	addi $sp, $sp, -4
+	sw $ra, 4($sp)
+	
+	# Open file
+	li $v0, 13 # $v0 = 13 for open file
+	la $a0, path_FileOut # $a0 store path
+	li $a1, 1 # Flag read only
+	li $a2, 0 # mode is ignored
+	syscall
+	# Saving decriptor and checking error
+	move $s4, $v0
+
+	bgez $s4, NotErrorOut
+	# Error part
+	li $v0, 4
+	la $a0, str_FileNotFound
+	syscall
+	j CloseFileOut
+
+	NotErrorOut:
+	move $t0, $s0
+	li $t1,0
+
+	WriteArrayToFileLoop:
+		beq $t1, $s1, EndWriteArrayToFileLoop
+		
+		lw $t2, ($t0)
+		
+		addi $sp, $sp, -4
+		sw $t0, 4($sp)
+		addi $sp, $sp, -4
+		sw $t1, 4($sp)
+		
+		addi $sp, $sp, -4
+		sw $t2, 4($sp)
+		
+		jal IToS
+
+		lw $t1, 4($sp)
+		addi $sp, $sp, 4
+		lw $t0, 4($sp)
+		 addi $sp, $sp, 4
+
+		li $v0, 15
+		move $a0, $s4
+		la $a1, itos_Buffer
+		syscall
+
+		li $v0, 15
+		la $a1, str_space
+		li $a2, 1
+		syscall
+
+		addi $t0, $t0, 4
+		addi $t1, $t1, 1
+		j WriteArrayToFileLoop
+	EndWriteArrayToFileLoop:
+
+
+	CloseFileOut:
+		li $v0, 16
+		move $a0, $s2
+		syscall
+EndWriteArrayToFile:
+	lw $ra, 4($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
 Exit:
 li $v0, 10
 syscall
