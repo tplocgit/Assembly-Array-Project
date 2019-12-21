@@ -4,7 +4,7 @@ path_FileOut:		.asciiz "output_sort.txt"
 str_Loading:		.asciiz "Loading from input_sort.txt...\n"
 str_Saving:			.asciiz "Saving into output_sort.txt...\n"
 str_Sorting:			.asciiz "Sorting...\n"
-str_dataChecking	:	.asciiz "Pease Check data: "
+str_dataChecking:	.asciiz "Pease Check data: "
 str_space:			.asciiz " "
 str_endl:			.asciiz "\n"
 str_FileNotFound: 	.asciiz "Error XXX: File not found\n"
@@ -23,6 +23,7 @@ main:
 	syscall
 	jal LoadArrayFromFile
 	
+	jal OutputArray
 	li $v0, 4
 	la $a0, str_Sorting
 	syscall
@@ -47,21 +48,21 @@ LoadArrayFromFile:
 	# Saving decriptor and checking error
 	move $s2, $v0
 	bgez $s2, NotError
-	# Error part
+	# Error notification part
 	li $v0, 4
 	la $a0, str_FileNotFound
 	syscall
 	j CloseFile
 	
-	NotError:
+	NotError:# if not have error while open file goto this part
 	# Read size
 	li $v0, 14 # read file
 	move $a0, $s2 # a0 = file decriptor
 	la $a1, str_StringOfFileIn # adress of input
-	li $a2, 12000
+	li $a2, 12000 # read max 12000 character
 	syscall
 
-	jal Parse
+	jal Parse # parse data of file intput and store array into heap
 
 	CloseFile:
 	li $v0, 16
@@ -71,12 +72,11 @@ EndLoadArrayFromFile:
 	lw $ra, 4($sp)
 	addi $sp, $sp, 4
 	jr $ra
-
 QuickSort:
 EndQuickSort:
 	jr $ra
 
-Parse:
+Parse: # Parse datas of file input and store result
 	addi $sp, $sp, -4 			# Request 4 bytes memory in stack to store return address
 	sw $ra, 4($sp) 			# Store return address to stack
 	la $s3, str_StringOfFileIn 	# Get a pointer to begin of string got from file
@@ -87,9 +87,10 @@ Parse:
 		addi $s3, $s3, 1 				# else move to next char
 		j GetSizeLoop
 	EndGetSizeLoop:
+
  	addi $sp, $sp, -4			# Ask 4 bytes block to store start of line
 	sw $t0, 4($sp)			# Store start of line
-	jal StrToInt
+	jal StrToInt	
 	lw $s1, 4($sp)
 	addi $sp, $sp, 4
 	addi $s3, $s3, 1
@@ -99,46 +100,66 @@ Parse:
 	li $v0, 9			# $v0, 9 to allocate memory
 	syscall
 	move $s0, $v0		# save address of array
+
 	# Read element
 	move $t0, $s3		# start line
 	move $t2, $s0		# point to array
 	GetElementLoop:
 		lb $t1, ($s3)
-		beq $t1, 32, StoreElement
-		beq $t1, 10, EndGetElementLoop
+		beq $t1, 32, StoreElement # if char is ' '
+		beq $t1, 10, EndGetElementLoop # if char is '\n'
+		beq $t1, 0, EndGetElementLoop # if null
 		j PrepareNextLoop
 		StoreElement:
+			# Store temp res before jum to sub function
 			addi $sp, $sp, -4
 			sw $t2, 4($sp)		# store before jal
+			
+			# Prepare for stoi funtion 
 			addi $sp, $sp, -4
-			sw $t0, 4($sp)		# store to jal
+			sw $t0, 4($sp)		# Store start position of characters contain number 
 			jal StrToInt
 			
+			# Save result of stoi function
 			lw $t1, 4($sp)
-			add $sp, $sp, 4
+			addi $sp, $sp, 4
+
+			# Get datas back to res before next loop
 			lw $t2, 4($sp)
-			add $sp, $sp, 4
+			addi $sp, $sp, 4
+
+			# Store result of stoi function
 			sw $t1, ($t2)
 			addi $t2, $t2, 4
-			move $t0, $s3
+
+			move $t0, $s3 # update start position of characters contain number
+			
+			# Move to next character
 			addi $t0, $t0,1
 		PrepareNextLoop:
 		addi $s3, $s3, 1
 		j GetElementLoop
 	EndGetElementLoop:
+	
+	GetLastElement:
+	# store before jal
 	addi $sp, $sp, -4
-	sw $t2, 4($sp)		# store before jal
-	addi $sp, $sp, -4
-	sw $t0, 4($sp)		# store to jal
+	sw $t2, 4($sp)	
+
+	# store to jal
+	addi $sp, $sp, -4	
+	sw $t0, 4($sp)	
 	jal StrToInt
 	
+	# Save result of stoi function
 	lw $t1, 4($sp)
-	add $sp, $sp, 4
+	addi $sp, $sp, 4
+	# Get datas back to res before next loop
 	lw $t2, 4($sp)
-	add $sp, $sp, 4
+	addi $sp, $sp, 4
+	# Store result of stoi function
 	sw $t1, ($t2)
-	addi $t2, $t2, 4
-
+	EndGetLastElement:
 EndParse:
 	lw $ra, 4($sp)	# Get return address stored at begin
 	addi $sp, $sp , 4	# Free 4 bytes block contains return adress of stack
@@ -212,41 +233,53 @@ IToS.Zero:
 IToS.NotZero:	
 	la $t1, itos_Buffer 		# Result
 	bgt $t0, 0, IToS.GTZ
-IToS.LTZ:
+IToS.LTZ: # less than 0
 	li $t2, 1
 	neg $t0, $t0
 	j IToS.Loop				# Checker check sign of element
-IToS.GTZ:
+IToS.GTZ: # greater than 0
 	li $t2, 0
 	IToS.Loop:
 		beqz $t0, EndIToS.Loop
-		div $t0, $t3
-		mflo $t0
-		mfhi $t4
-		addi $t4, $t4, 48
-		addi $sp, $sp, -1
+		div $t0, $t3 # num / 10
+		mflo $t0	# get result of num / 10
+		mfhi $t4	# get num modulus 10
+		addi $t4, $t4, 48 # a number from 0 to 9 + 48 is char value of this number
+		
+		# Store to stack to get reverse result at end
+		addi $sp, $sp, -1 
 		sb $t4, 1($sp)
+		
+		# Prepare to next loop
 		addi $t5, $t5, 1
 		j IToS.Loop
 	EndIToS.Loop:
-	beqz $t2, IToS.StoreResult
+
+	# check sign
+	beqz $t2, IToS.StoreResult # $t2 contain sign
+	# Add a '-' character if num is negative
 	addi $sp, $sp, -1
-	li $t6, 45
-	sb $t6, 1($sp)
-	addi $t5, $t5, 1 
+	li $t6, 45 # '-' is 45
+	sb $t6, 1($sp) # store
+	addi $t5, $t5, 1 # add number of characters by 1
 IToS.StoreResult:
-	la $t6, itos_Buffer
-	move $a2, $t5
+	la $t6, itos_Buffer # string store result
+	move $a2, $t5 # a2 = number of character got
 	IToS.StoreResult.Loop:
-		beqz $t5, EndIToS.StoreResult.Loop
+		beqz $t5, EndIToS.StoreResult.Loop # if have store all charracters break
+
+		# Load character got from stack
 		lb $t7, 1($sp)
-		sb $t7, ($t6)
 		addi $sp, $sp, 1
+		# Store character to string
+		sb $t7, ($t6)
+
+		# Prepare next loop
 		addi $t5,$t5,-1
 		addi $t6, $t6, 1
 		j IToS.StoreResult.Loop
 	EndIToS.StoreResult.Loop:
-	sb $zero, ($t6)
+	sb $zero, ($t6) # Store th '\0' to end of string
 EndIToS:
 	jr $ra
 
@@ -279,31 +312,37 @@ WriteArrayToFile:
 		
 		lw $t2, ($t0)
 		
+		# Store temp res before jum to sub function
 		addi $sp, $sp, -4
 		sw $t0, 4($sp)
 		addi $sp, $sp, -4
 		sw $t1, 4($sp)
 		
+		# Store the num to stack to convert
 		addi $sp, $sp, -4
 		sw $t2, 4($sp)
 		
 		jal IToS
 
+		# Get temp res value back
 		lw $t1, 4($sp)
 		addi $sp, $sp, 4
 		lw $t0, 4($sp)
-		 addi $sp, $sp, 4
+		addi $sp, $sp, 4
 
+		# Write element converted
 		li $v0, 15
 		move $a0, $s4
 		la $a1, itos_Buffer
 		syscall
 
+		# Write space
 		li $v0, 15
 		la $a1, str_space
 		li $a2, 1
 		syscall
 
+		# Prepare next loop
 		addi $t0, $t0, 4
 		addi $t1, $t1, 1
 		j WriteArrayToFileLoop
