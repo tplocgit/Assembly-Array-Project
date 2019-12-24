@@ -230,8 +230,7 @@ Parse: # Parse datas of file input and store result
 	move $t0, $s3			# Store first address to calculate number of chars read
 	GetSizeLoop:
 		lb $t1, ($s3)
-		beq $t1, 10, EndGetSizeLoop	# if '\n' is read break 
-		beq $t1, 13, EndGetSizeLoop	# if '\n' is read break 
+		ble $t1, 13, EndGetSizeLoop	# if '\n' is read break 
 		addi $s3, $s3, 1 				# else move to next char
 		j GetSizeLoop
 	EndGetSizeLoop:
@@ -256,9 +255,7 @@ Parse: # Parse datas of file input and store result
 	GetElementLoop:
 		lb $t1, ($s3)
 		beq $t1, 32, StoreElement # if char is ' '
-		beq $t1, 10, EndGetElementLoop # if char is '\n'
-		beq $t1, 13, EndGetElementLoop	# if '\n' is read break
-		beq $t1, 0, EndGetElementLoop # if null
+		ble $t1, 13, EndGetElementLoop	# if '\n' is read break
 		j PrepareNextLoop
 		StoreElement:
 			# Store temp res before jum to sub function
