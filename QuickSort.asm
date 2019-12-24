@@ -25,6 +25,11 @@ main:
 	la $a0, str_Loading
 	syscall
 	jal LoadArrayFromFile
+	li $v0,1
+	move $a0, $s1
+	syscall
+	
+	#jal OutputArray
 	
 	li $v0, 4
 	la $a0, str_Sorting
@@ -51,14 +56,16 @@ Endmain:
 j Exit
 
 PrepareQuickSort:
-	addi $t1, $s1, -1 #right = size - 1
+	li $t1, 4
+	mul $t1, $s1, $t1
+	addi $t1, $t1, -4
+
 	addi $sp, $sp, -4
 	sw $t1, 4($sp)#push right
 
-	li $t1, 0 # left = 0
+	move $t1, $s0 # left = 0
 	addi $sp, $sp, -4
 	sw $t1, 4($sp)#push left
-
 EndPrepareQuickSort:
 	jr $ra
 
@@ -133,13 +140,6 @@ Partition:
 	lw $t1, 8($sp)#get R
 
 	#get pivot value
-	li $t2, 4
-	mul $t0, $t0, $t2
-	add $t0, $t0, $s0 #$t0 = arr[left]
-
-	mul $t1, $t1, $t2
-	add $t1, $t1, $s0 #$t1 = arr[right]
-	
 	move $t2, $t0 #$t2 = pivot value (current arr[left])
 	addi $t0, $t0, 4 # continue to run $t0 = arr[++left]
 
@@ -182,7 +182,7 @@ Partition:
 	EndSwap:
 	#return R
 	addi $sp, $sp, -4
-	sw $t1, ($sp)
+	sw $t1, 4($sp)
 EndPartition:
 	jr $ra
 LoadArrayFromFile:
