@@ -248,7 +248,11 @@ Parse: # Parse datas of file input and store result
 	li $v0, 9			# $v0, 9 to allocate memory
 	syscall
 	move $s0, $v0		# save address of array
-
+	
+	lb $t1, ($s3)
+	bgt $t1, 13, Good	# if '\n' is read break
+	addi $s3, $s3, 1
+	Good:
 	# Read element
 	move $t0, $s3		# start line
 	move $t2, $s0		# point to array
