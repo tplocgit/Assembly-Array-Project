@@ -3,13 +3,14 @@ path_FileIn:			.asciiz "input_sort.txt"
 path_FileOut:			.asciiz "output_sort.txt"
 str_Loading:			.asciiz "Loading from input_sort.txt...\n"
 str_Saving:				.asciiz "Saving into output_sort.txt...\n"
-str_Sorting:			.asciiz "\n" #"Sorting...\n"
+str_Sorting:			.asciiz "Sorting...\n"
 str_dataChecking:		.asciiz "Please Check data: "
 str_space:				.asciiz " "
 p_Sorted:				.asciiz "Sorted Array:\n"
 str_endl:				.asciiz "\n"
 str_FileNotFound: 		.asciiz "Error XXX: File not found\n"
 str_StringOfFileIn:		.asciiz "" 
+p_Ele:					.asciiz " elements\n"
 p_OutputSize:			.asciiz "Size:\t"
 itos_Buffer:			.space 12
 .text
@@ -25,12 +26,10 @@ main:
 	la $a0, str_Loading
 	syscall
 	jal LoadArrayFromFile
-	li $v0,1
-	move $a0, $s1
-	syscall
 	
-	#jal OutputArray
 	
+
+	jal OutputArray
 	li $v0, 4
 	la $a0, str_Sorting
 	syscall
@@ -40,7 +39,7 @@ main:
 	#move $t0, $s0#a[i] = a[1] ~ addi $t0 , $t0, 4 to get a[++i]
 
 	jal PrepareQuickSort
-	jal QuickSort
+	jal QuickSort.Start
 
 	li $v0, 4
 	la $a0, p_Sorted
@@ -56,135 +55,101 @@ Endmain:
 j Exit
 
 PrepareQuickSort:
-	li $t1, 4
-	mul $t1, $s1, $t1
-	addi $t1, $t1, -4
-
-	addi $sp, $sp, -4
-	sw $t1, 4($sp)#push right
-
-	move $t1, $s0 # left = 0
-	addi $sp, $sp, -4
-	sw $t1, 4($sp)#push left
+	# Store right
+	li $t0, 4			# 4 bytes
+	mul $t1, $s1, $t0	# t = size * 4
+	addi $t1, $t1, -4	# t -= 4 
+	add $t1, $t1, $s0	# right pointer = $s0 + t => point to last element 
+	addi $sp, $sp, -4	# Ask block
+	sw $t1, 4($sp)		# store
+	# Store left
+	move $t1, $s0		# t = $s0 => first element
+	addi $sp, $sp, -4	# ask block
+	sw $t1, 4($sp)		# store
 EndPrepareQuickSort:
 	jr $ra
-
-QuickSort:
-	#pop L, R
-	#$t0 = L
-	#$t1 = R
-	#$t2 = pivot
-	lw $t0, 4($sp)#pop L
-	addi $sp, $sp, 4
-
-	lw $t1, 4($sp)#pop R
-	addi $sp, $sp, 4
-
-	addi $sp, $sp, -4 #save $ra
+QuickSort.Start:
+	# get left and right
+	lw $t0, 4($sp)		# get left
+	addi $sp, $sp, 4	# free block contains left
+	lw $t1, 4($sp)		# get right
+	addi $sp, $sp, 4	# free block contains right
+	# Store return
+	addi $sp, $sp ,-4
 	sw $ra, 4($sp)
-
-	bge $t0, $t1, EndQuickSort
-
-	addi $sp, $sp, -4
-	sw $t1, 4($sp)
-	addi $sp, $sp, -4
-	sw $t0, 4($sp)
-
-	jal Partition
-
-	lw $t0, 4($sp)#pop L
-	addi $sp, $sp, 4
-
-	lw $t1, 4($sp)#pop R
-	addi $sp, $sp, 4
-
-	lw $t2, 4($sp)#pop PIVOT
-	addi $sp, $sp, 4
-
-	addi $sp, $sp, -4
-	sw $t0, 4($sp)
-	addi $sp, $sp, -4
-	sw $t2, 4($sp)
-
-	bgt $t0, $t2, EndRecursion.LEFT #if(L > pivot) continue
-	Recursion.LEFT:
-		addi $sp, $sp, -4
-		sw $t0, 4($sp)
-		addi $sp, $sp, -4
-		sw $t2, 4($sp)
-		jal QuickSort
-	EndRecursion.LEFT:
-
-	lw $t0, 4($sp)#pop L
-	addi $sp, $sp, 4
-	lw $t1, 4($sp)#pop R
-	addi $sp, $sp, 4
-
-	bgt $t2, $t1, EndRecursion.RIGHT #if(pivot > R) continue
 	
-	Recursion.RIGHT:
-		addi $sp, $sp, -4
-		sw $t2, 4($sp)
-		addi $sp, $sp, -4
-		sw $t1, 4($sp)
-		jal QuickSort
-	EndRecursion.RIGHT:
-EndQuickSort:
-	lw  $ra, 4($sp)
-	addi $sp ,$sp ,4
-	jr $ra
-Partition:
-	#get L - R but no pop
+	bgt $t0, $t1, QuickSort.End
 	
-	lw $t0, 4($sp)#get L
-	lw $t1, 8($sp)#get R
+	move $t6, $t0		# copy left
+	move $t7, $t1		# copy right
+	
+	move $t2, $t0		# pivot is left
+	lw $t3, ($t2)		# pivot value
+	addi $t0, $t0, 4	# left += 1
+	
+	QuickSort.Partition.Start:
+		bgt $t0, $t1, QuickSort.Partition.End		
+			Partition.Left.Loop.Start:
+				lw $t4, ($t0)
+				bge $t4, $t3, Partition.Left.Loop.End	# if a[left] > pivot value -> break
+				bgt $t0, $t1, Partition.Left.Loop.End	# if left > right -> break
+														# else
+				addi $t0, $t0, 4						# move to next element, left++
+				j Partition.Left.Loop.Start				# loop
+			Partition.Left.Loop.End:
 
-	#get pivot value
-	move $t2, $t0 #$t2 = pivot value (current arr[left])
-	addi $t0, $t0, 4 # continue to run $t0 = arr[++left]
+			Partition.Right.Loop.Start:
+				lw $t4, ($t1)
+				blt $t4, $t3, Partition.Right.Loop.End	# if a[right] < pivot value -> break
+				bgt $t0, $t1, Partition.Right.Loop.End	# if right < left -> break
+														# else
+				addi $t1, $t1, -4						# move to next element, right--
+				j Partition.Right.Loop.Start			# loop
+			Partition.Right.Loop.End:
+			bgt $t0, $t1, QuickSort.Partition.NotSwap	# if left > right dont need to swap
+				QuickSort.Partition.Swap:
+					lw $t4, ($t0)	# t4 = left val
+					lw $t5, ($t1)	# t5 = right val
+					sw $t5, ($t0)	# left val = t5
+					sw $t4, ($t1)	# right val = t4
+				QuickSort.Partition.NotSwap:
+		j QuickSort.Partition.Start	
+	QuickSort.Partition.End:
 
-	Loop.Partition:
-		bgt $t0, $t1, EndLoop.Partition
-		Loop.LEFT:
-			lw $t3, ($t0)
-			lw $t4, ($t2)
-			bge $t3, $t4, EndLoop.LEFT #if(arr[left] >=  pivot value ) break;
-			addi $t0, $t0, 4 # continue to run $t0 = arr[++left]
-			j Loop.LEFT
-		EndLoop.LEFT:
-
-		Loop.RIGHT:
-			lw $t3, ($t1)
-			lw $t4, ($t2)
-			ble $t3, $t4, EndLoop.RIGHT #if(arr[right] <=  pivot value ) break;
-			addi $t1, $t1, -4
-			j Loop.RIGHT
-		EndLoop.RIGHT:
-
-		bgt $t0, $t1, EndLoop.Partition
-		#Swap
-		lw $t3, ($t0)
-		lw $t4, ($t1)
-		sw $t4, ($t0)
-		sw $t3, ($t1) 	
-		j Loop.Partition
-	EndLoop.Partition:
-
-	#if(arr[pivot] < arr[right])Swap
-	lw $t3, ($t1)
-	lw $t4, ($t2)
-	bgt $t4, $t3, EndSwap
-	Swap:
-		lw $t3, ($t2)
-		lw $t4, ($t1)
-		sw $t4, ($t2)
-		sw $t3, ($t1) 	
-	EndSwap:
-	#return R
-	addi $sp, $sp, -4
-	sw $t1, 4($sp)
-EndPartition:
+	lw $t4, ($t1)					# right value
+	bge $t4, $t3, QuickSort.NotSwap	# if right > pivot dont need to swap
+	QuickSort.Swap:
+		lw $t4, ($t1)	# t4 = left val
+		lw $t5, ($t2)	# t5 = pivot val
+		sw $t5, ($t1)	# left val = t5
+		sw $t4, ($t2)	# pivot val = t4
+	QuickSort.NotSwap:
+	
+	# prepare for Next QuickSort
+		# push right (2 value)
+		addi $sp, $sp ,-4
+		sw $t7, 4($sp)
+		addi $sp, $sp ,-4
+		move $t2, $t1
+		addi $t2, $t2, 4
+		sw $t2, 4($sp)
+		# push left (2 value)
+		addi $sp, $sp ,-4
+		move $t2, $t1
+		addi $t2, $t2, -4
+		sw $t2, 4($sp)
+		addi $sp, $sp ,-4
+		sw $t6, 4($sp)
+	
+	jal QuickSort.Start # take last 2 value pushed of stack as left and right, then pop them
+	
+	jal QuickSort.Start # take last 2 value pushed of stack as left and right, then pop them
+QuickSort.End:
+	lw $ra, 4($sp)
+	addi $sp, $sp, 4
 	jr $ra
+
+
 LoadArrayFromFile:
 	addi $sp, $sp, -4
 	sw $ra, 4($sp)
